@@ -1,7 +1,5 @@
 import { getRequestEvent } from "$app/server"
-import { FIREBASE_ID_TOKEN, FIREBASE_REFRESH_TOKEN } from "./firebase";
 import { verifyIdToken } from "./firebase-admin";
-import { refreshFirebaseIdToken } from "./firebase-auth";
 
 const COOKIE_OPTIONS = {
     httpOnly: true,
@@ -17,17 +15,20 @@ export const saveSession = (
     refresh_token: string
 ) => {
 
-    const { cookies } = getRequestEvent();
+    const {
+        cookies,
+        locals: { firebase_settings }
+    } = getRequestEvent();
 
     // set both cookies
     cookies.set(
-        FIREBASE_ID_TOKEN,
+        firebase_settings.id_token_cookie_name,
         id_token,
         COOKIE_OPTIONS
     );
 
     cookies.set(
-        FIREBASE_REFRESH_TOKEN,
+        firebase_settings.refresh_token_cookie_name,
         refresh_token,
         COOKIE_OPTIONS
     );
@@ -35,10 +36,18 @@ export const saveSession = (
 
 export const getSession = () => {
 
-    const { cookies } = getRequestEvent();
+    const {
+        cookies,
+        locals: { firebase_settings }
+    } = getRequestEvent();
 
-    const id_token = cookies.get(FIREBASE_ID_TOKEN) || null;
-    const refresh_token = cookies.get(FIREBASE_REFRESH_TOKEN) || null;
+    const id_token = cookies.get(
+        firebase_settings.id_token_cookie_name
+    ) || null;
+
+    const refresh_token = cookies.get(
+        firebase_settings.refresh_token_cookie_name
+    ) || null;
 
     if (!id_token || !refresh_token) {
         //deleteSession();
@@ -57,11 +66,20 @@ export const getSession = () => {
 
 export const deleteSession = () => {
 
-    const { cookies } = getRequestEvent();
+    const {
+        cookies,
+        locals: { firebase_settings }
+    } = getRequestEvent();
 
     // remove both cookies
-    cookies.delete(FIREBASE_ID_TOKEN, COOKIE_OPTIONS);
-    cookies.delete(FIREBASE_REFRESH_TOKEN, COOKIE_OPTIONS);
+    cookies.delete(
+        firebase_settings.id_token_cookie_name,
+        COOKIE_OPTIONS
+    );
+    cookies.delete(
+        firebase_settings.refresh_token_cookie_name,
+        COOKIE_OPTIONS
+    );
 }
 
 

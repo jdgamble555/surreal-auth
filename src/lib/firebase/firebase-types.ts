@@ -10,6 +10,15 @@ export type FirebaseRestError = {
     };
 };
 
+export type FirebaseSettings = {
+    config: FirebaseConfig;
+    client_redirect_uri: string;
+    default_redirect_page: string;
+    id_token_cookie_name: string;
+    refresh_token_cookie_name: string;
+    providers: Record<string, { client_id: string; client_secret: string }>;
+};
+
 export type FirebaseConfig = {
     apiKey: string;
     authDomain: string;
@@ -86,33 +95,33 @@ export type FirebaseIdTokenPayload = {
 };
 
 export interface UserMetadata {
-  creationTime: string
-  lastSignInTime: string
-  lastRefreshTime?: string
+    creationTime: string
+    lastSignInTime: string
+    lastRefreshTime?: string
 }
 
 export interface UserInfo {
-  uid: string
-  displayName?: string
-  email?: string
-  photoURL?: string
-  phoneNumber?: string
-  providerId: string
+    uid: string
+    displayName?: string
+    email?: string
+    photoURL?: string
+    phoneNumber?: string
+    providerId: string
 }
 
 export type CustomClaims = Record<string, string | number | boolean | null>
 
 export interface UserRecord {
-  uid: string
-  email?: string
-  emailVerified: boolean
-  displayName?: string
-  photoURL?: string
-  phoneNumber?: string
-  disabled: boolean
-  metadata: UserMetadata
-  providerData: UserInfo[]
-  tokensValidAfterTime?: string
-  tenantId?: string
-  customClaims?: { [key: string]: CustomClaims }
+    uid: string
+    email?: string
+    emailVerified: boolean
+    displayName?: string
+    photoURL?: string
+    phoneNumber?: string
+    disabled: boolean
+    metadata: UserMetadata
+    providerData: UserInfo[]
+    tokensValidAfterTime?: string
+    tenantId?: string
+    customClaims?: { [key: string]: CustomClaims }
 }

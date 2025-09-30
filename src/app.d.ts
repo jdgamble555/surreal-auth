@@ -1,13 +1,13 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 
-import type { getFirebaseServer } from "$lib/firebase/firebase-server";
+import type { FirebaseSettings } from "$lib/firebase/firebase-types";
 
 // for information about these interfaces
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			getFirebaseServer: typeof getFirebaseServer;
+			firebase_settings: FirebaseSettings;
 		}
 		// interface PageData {}
 		// interface PageState {}
