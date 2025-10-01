@@ -1,45 +1,37 @@
 import { decodeProtectedHeader, jwtVerify } from "jose";
-import { firebase_config } from "./firebase";
-import type { FirebaseIdTokenPayload } from "./firebase-types";
+import type { FirebaseIdTokenPayload } from "../core/firebase-types";
 import {
     JWSSignatureVerificationFailed,
     JWTClaimValidationFailed,
     JWTExpired,
     JWTInvalid
 } from "jose/errors";
+import { getJWKs } from "./auth-endpoints";
 
-
-
-// JWK Token from Firebase
-const projectId = firebase_config.projectId;
-
-const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
-
-// Cache of parsed keys
-const jwkCache: Record<string, CryptoKey> = {};
 
 async function getFirebasePublicJWK(kid: string) {
 
-	if (jwkCache[kid]) return jwkCache[kid];
+    const { data: keys, error } = await getJWKs();
 
-	const res = await fetch(JWKS_URL);
+    if (error) {
+        throw new Error(`Failed to fetch JWKs: ${error.message}`);
+    }
 
-	if (!res.ok) throw new Error("Failed to fetch Firebase JWKS");
+    if (!keys || !keys.length) {
+        throw new Error('No JWKs found');
+    }
 
-	const { keys } = await res.json();
+    for (const jwk of keys) {
+        if (jwk.kid === kid && jwk.alg === 'RS256' && jwk.kty === 'RSA' && jwk.use === 'sig') {
+            return jwk;
+        }
+    }
 
-	for (const jwk of keys) {
-		if (jwk.kid === kid && jwk.alg === 'RS256' && jwk.kty === 'RSA' && jwk.use === 'sig') {
-			jwkCache[kid] = jwk;
-			return jwk;
-		}
-	}
-
-	throw new Error(`Unable to find valid key with kid=${kid}`);
+    throw new Error(`Unable to find valid key with kid=${kid}`);
 }
 
 
-export async function verifyFirebaseToken(idToken: string) {
+export async function verifyFirebaseToken(idToken: string, projectId: string) {
 
     try {
 

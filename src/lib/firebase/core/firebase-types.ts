@@ -17,6 +17,10 @@ export type FirebaseSettings = {
     id_token_cookie_name: string;
     refresh_token_cookie_name: string;
     providers: Record<string, { client_id: string; client_secret: string }>;
+    fetchFn?: typeof fetch;
+    getSession?: () => { data: { id_token: string; refresh_token: string } | null };
+    saveSession?: (id_token: string, refresh_token: string) => void;
+    deleteSession?: () => void;
 };
 
 export type FirebaseConfig = {

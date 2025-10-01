@@ -1,4 +1,5 @@
-import { getUser } from "./firebase-auth";
+
+import { getUser } from "./auth-endpoints";
 import { verifyFirebaseToken } from "./firebase-jwt";
 
 export async function verifyIdToken(idToken: string, checkRevoked: boolean = false) {
@@ -41,7 +42,7 @@ export async function verifyIdToken(idToken: string, checkRevoked: boolean = fal
     if (user.tokensValidAfterTime) {
 
         // Get the ID token authentication time and convert to milliseconds UTC.
-        const authTimeUtc = decodedIdToken.auth_time * 1000;
+        const authTimeUtc = decodedIdToken!.auth_time * 1000;
 
         // Get user tokens valid after time in milliseconds UTC.
         const validSinceUtc = new Date(user.tokensValidAfterTime).getTime();

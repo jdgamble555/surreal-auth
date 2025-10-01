@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { loginWithCode } from '$lib/firebase/firebase-server';
+import { loginWithCode } from '$lib/firebase/sveltekit/firebase-server';
 
 export const load: PageServerLoad = async ({ url }) => {
 

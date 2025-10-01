@@ -1,6 +1,6 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 
-import type { FirebaseSettings } from "$lib/firebase/firebase-types";
+import type { FirebaseSettings } from "$lib/firebase/core/firebase-types";
 
 // for information about these interfaces
 declare global {

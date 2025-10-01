@@ -1,5 +1,4 @@
 import { getRequestEvent } from "$app/server"
-import { verifyIdToken } from "./firebase-admin";
 
 const COOKIE_OPTIONS = {
     httpOnly: true,
@@ -83,72 +82,3 @@ export const deleteSession = () => {
 }
 
 
-export const getVerifiedToken = async () => {
-
-    const { data } = getSession();
-
-    if (!data) {
-        return {
-            data: null,
-            error: null
-        };
-    }
-
-    const {
-        error: verifyError,
-        data: verifyData
-    } = await verifyIdToken(data.id_token);
-
-    if (verifyError) {
-
-        // Auto refresh if expired
-        if (verifyError.code === "ERR_JWT_EXPIRED") {
-
-            const {
-                data: refreshData,
-                error: refreshError
-            } = await refreshFirebaseIdToken(data.refresh_token);
-
-            if (refreshError) {
-                deleteSession();
-                return {
-                    data: null,
-                    error: refreshError
-                };
-            }
-
-            if (!refreshData) {
-                deleteSession();
-                return {
-                    data: null,
-                    error: null
-                };
-            }
-            saveSession(
-                refreshData.id_token,
-                refreshData.refresh_token
-            );
-            return {
-                data: refreshData.id_token,
-                error: null
-            };
-        }
-        return {
-            data: null,
-            error: verifyError
-        };
-    }
-
-    if (!verifyData) {
-        deleteSession();
-        return {
-            data: null,
-            error: null
-        };
-    }
-
-    return {
-        data: data.id_token,
-        error: null
-    };
-};
