@@ -1,27 +1,35 @@
-import type { FirebaseRestError } from "./firebase-types";
-
 export const restFetch = async <T, A>(
     url: string,
-    body?: object,
     options?: {
-        formEncode?: boolean;
+        body?: object;
+        params?: Record<string, string>;
+        form?: boolean;
+        bearerToken?: string;
         fetchFn?: typeof fetch;
     }
 ) => {
 
     const fetchFn = options?.fetchFn ?? fetch;
-    const formEncode = options?.formEncode ?? false;
+    const form = options?.form ?? false;
+    const bearerHeader = options?.bearerToken
+        ? { 'Authorization': `Bearer ${options.bearerToken}` }
+        : null;
 
-    const res = await fetchFn(url, {
+    const query = options?.params
+        ? '?' + new URLSearchParams(options.params)
+        : '';
+
+    const res = await fetchFn(url + query, {
         method: "POST",
         headers: {
-            "Content-Type": formEncode
+            "Content-Type": form
                 ? "application/x-www-form-urlencoded"
-                : "application/json"
+                : "application/json",
+            ...bearerHeader
         },
-        body: body ? formEncode
-            ? new URLSearchParams(body as Record<string, string>)
-            : JSON.stringify(body) : undefined
+        body: options?.body ? form
+            ? new URLSearchParams(options.body as Record<string, string>)
+            : JSON.stringify(options.body) : undefined
     });
 
     if (res.headers.get("content-type")?.includes("application/json")) {
@@ -60,25 +68,5 @@ export const restFetch = async <T, A>(
     return {
         data,
         error: null
-    };
-};
-
-export const firebaseFetch = async <T>(url: string, body?: object, fetchFn?: typeof fetch) => {
-
-    const { data, error } = await restFetch<T, FirebaseRestError>(url, body, { fetchFn });
-
-    return {
-        data,
-        error: error ? error.error : null
-    };
-};
-
-export const googleFetch = async <T>(url: string, body?: Record<string, string>, fetchFn?: typeof fetch) => {
-
-    const { data, error } = await restFetch<T, FirebaseRestError>(url, body, { formEncode: true, fetchFn });
-
-    return {
-        data,
-        error: error ? error.error : null
     };
 };

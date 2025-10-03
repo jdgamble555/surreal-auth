@@ -1,13 +1,19 @@
-import { firebaseFetch, googleFetch } from "../core/rest-fetch";
+import { restFetch } from "../core/rest-fetch";
 import type {
     UserRecord,
     FirebaseCreateAuthUriResponse,
     FirebaseIdpSignInResponse,
     FirebaseRefreshTokenResponse,
-    GoogleTokenResponse
+    GoogleTokenResponse,
+    FirebaseRestError
 } from "../core/firebase-types";
 
 // Functions
+
+function createIdentityURL(name: string) {
+    return `https://identitytoolkit.googleapis.com/v1/accounts:${name}`;
+}
+
 
 export function createGoogleOAuthLoginUrl(
     redirect_uri: string,
@@ -40,82 +46,106 @@ export async function exchangeCodeForGoogleIdToken(
 
     const url = 'https://oauth2.googleapis.com/token';
 
-    const body = {
-        code,
-        client_id,
-        client_secret,
-        redirect_uri,
-        grant_type: "authorization_code"
-    };
-
-    return await googleFetch<GoogleTokenResponse>(url, body, fetchFn);
+    return await restFetch<GoogleTokenResponse, FirebaseRestError>(url, {
+        fetchFn,
+        body: {
+            code,
+            client_id,
+            client_secret,
+            redirect_uri,
+            grant_type: "authorization_code"
+        },
+        form: true
+    });
 }
 
 export async function refreshFirebaseIdToken(
     refreshToken: string,
-    apiKey: string,
+    key: string,
     fetchFn?: typeof fetch
 ) {
 
-    const url = `https://securetoken.googleapis.com/v1/token?key=${apiKey}`;
+    const url = `https://securetoken.googleapis.com/v1/token`;
 
-    const body = {
-        grant_type: "refresh_token",
-        refresh_token: refreshToken
-    };
-
-    return await googleFetch<FirebaseRefreshTokenResponse>(url, body, fetchFn);
+    return await restFetch<FirebaseRefreshTokenResponse, FirebaseRestError>(url, {
+        fetchFn,
+        body: {
+            grant_type: "refresh_token",
+            refresh_token: refreshToken
+        },
+        params: {
+            key
+        },
+        form: true
+    });
 }
 
 export async function createAuthUri(
     redirect_uri: string,
-    apiKey: string,
+    key: string,
     fetchFn?: typeof fetch
 ) {
 
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${apiKey}`;
+    const url = createIdentityURL('createAuthUri');
 
-    const body = {
-        continueUri: redirect_uri,
-        providerId: "google.com"
-    };
-
-    return await firebaseFetch<FirebaseCreateAuthUriResponse>(url, body, fetchFn);
+    return await restFetch<FirebaseCreateAuthUriResponse, FirebaseRestError>(url, {
+        fetchFn,
+        body: {
+            continueUri: redirect_uri,
+            providerId: "google.com"
+        },
+        params: {
+            key
+        }
+    });
 }
 
 export async function signInWithIdp(
-    googleIdToken: string,
+    id_token: string,
+    providerId: string = 'google.com',
     requestUri: string,
-    apiKey: string,
+    key: string,
     fetchFn?: typeof fetch
 ) {
 
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${apiKey}`;
+    const url = createIdentityURL('signInWithIdp');
 
-    const body = {
-        postBody: `id_token=${googleIdToken}&providerId=google.com`,
-        requestUri,
-        returnSecureToken: true
-    };
+    const postBody = new URLSearchParams({
+        id_token,
+        providerId
+    }).toString();
 
-    return await firebaseFetch<FirebaseIdpSignInResponse>(
-        url,
-        body,
-        fetchFn
-    );
+    return await restFetch<FirebaseIdpSignInResponse, FirebaseRestError>(url, {
+        fetchFn,
+        body: {
+            postBody,
+            requestUri,
+            returnSecureToken: true
+        },
+        params: {
+            key
+        }
+    });
 }
 
 export async function getUser(
     idToken: string,
-    apiKey: string,
+    key: string,
     fetchFn?: typeof fetch
 ) {
 
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`;
+    const url = createIdentityURL('lookup');
 
-    const body = { idToken };
-
-    const { data, error } = await googleFetch<UserRecord[]>(url, body, fetchFn);
+    const { data, error } = await restFetch<UserRecord[], FirebaseRestError>(url, {
+        fetchFn,
+        body: {
+            idToken
+        },
+        params: {
+            key
+        },
+        form: true
+    });
 
     return {
         data: data?.length ? data[0] : null,
@@ -127,11 +157,10 @@ export async function getJWKs(fetchFn?: typeof fetch) {
 
     const url = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 
-    const { data, error } = await googleFetch<{ keys: (JsonWebKey & { kid: string })[] }>(
-        url,
-        undefined,
-        fetchFn
-    );
+    const { data, error } = await restFetch<{ keys: (JsonWebKey & { kid: string })[] }, FirebaseRestError>(url, {
+        fetchFn,
+        form: true
+    });
 
     return {
         data: data?.keys || null,
