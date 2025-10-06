@@ -1,26 +1,28 @@
-import { PRIVATE_GOOGLE_CLIENT_SECRET } from "$env/static/private";
-import { PUBLIC_GOOGLE_CLIENT_ID } from "$env/static/public";
-import { PUBLIC_FIREBASE_CONFIG } from "$env/static/public";
+import { PRIVATE_FIREBASE_ADMIN_CONFIG, PRIVATE_GOOGLE_CLIENT_SECRET } from "$env/static/private";
+import { PUBLIC_FIREBASE_CONFIG, PUBLIC_GOOGLE_CLIENT_ID } from "$env/static/public";
+import { FirebaseAuthServer } from "$lib/firebase/firebase-auth-server";
 import type { Handle } from "@sveltejs/kit";
 
-export const firebase_config = JSON.parse(PUBLIC_FIREBASE_CONFIG);
-
+const firebaseAdminConfig = JSON.parse(PRIVATE_FIREBASE_ADMIN_CONFIG);
+const firebaseConfig = JSON.parse(PUBLIC_FIREBASE_CONFIG);
 
 export const handle: Handle = async ({ event, resolve }) => {
 
-    event.locals.firebase_settings = {
-        config: firebase_config,
-        client_redirect_uri: '/auth/callback',
-        default_redirect_page: '/',
-        id_token_cookie_name: 'firebase_id_token',
-        refresh_token_cookie_name: 'firebase_refresh_token',
+    event.locals.authServer = new FirebaseAuthServer({
+        firebaseAdminConfig,
+        firebaseConfig,
         providers: {
             google: {
                 client_id: PUBLIC_GOOGLE_CLIENT_ID,
                 client_secret: PRIVATE_GOOGLE_CLIENT_SECRET
             }
-        }
-    };
+        },
+        cookies: {
+            getSession: (name) => event.cookies.get(name),
+            saveSession: (name, value, options) => event.cookies.set(name, value, options)
+        },
+        fetch: event.fetch
+    });
 
     return resolve(event);
 };

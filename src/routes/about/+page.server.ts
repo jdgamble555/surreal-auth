@@ -1,28 +1,20 @@
-import { getAbout } from "$lib/about";
-import { error, redirect } from "@sveltejs/kit";
+import { redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
+import { surrealQuery } from "$lib/surreal/surreal";
 
 
-export const load = (async ({ locals: { getFirebaseServer }, parent, url }) => {
+export const load = (async ({ locals: { authServer }, url }) => {
 
-    const { user } = await parent();
+    const { data: user } = await authServer.getUser();
 
-    // Block access if not authenticated
-    // Although need Firestore Rules to prevent access on client
     if (!user) {
         redirect(302, '/login?next=' + url.pathname);
     }
 
-    const { data, error: firebaseError } = await getFirebaseServer();
-
-    if (firebaseError) {
-        error(400, firebaseError);
-    }
-
-    const { db } = data;
+    const data = await surrealQuery('SELECT * FROM pages:i1csv7cevkek4f9ikbyc');
 
     return {
-        about: await getAbout(db)
+        about: data[0].result[0]
     };
 
 }) satisfies PageServerLoad;

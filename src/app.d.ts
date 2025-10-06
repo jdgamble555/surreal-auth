@@ -1,13 +1,13 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 
-import type { FirebaseSettings } from "$lib/firebase/core/firebase-types";
+import type { FirebaseAuthServer } from "$lib/firebase-auth-server";
 
 // for information about these interfaces
 declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			firebase_settings: FirebaseSettings;
+			authServer: FirebaseAuthServer
 		}
 		// interface PageData {}
 		// interface PageState {}

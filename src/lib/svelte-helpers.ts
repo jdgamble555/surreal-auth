@@ -1,5 +1,10 @@
 import { getRequestEvent } from "$app/server";
 
+// Config Options
+const client_redirect_uri = '/auth/callback';
+const DEFAULT_REDIRECT_PAGE = '/';
+
+
 export const getPathname = () => {
 
     const { request } = getRequestEvent();
@@ -11,6 +16,7 @@ export const getPathname = () => {
     }
 
     const url = new URL(referer);
+    
     return url.searchParams.get("next") || DEFAULT_REDIRECT_PAGE;
 }
 

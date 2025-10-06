@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import Logout from '$lib/logout.svelte';
+	import Logout from '$lib/components/logout.svelte';
 	import { page } from '$app/state';
 
 	let { children } = $props();

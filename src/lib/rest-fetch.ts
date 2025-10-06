@@ -1,3 +1,6 @@
+const PRINT_URL = false;
+
+
 export const restFetch = async <T, A>(
     url: string,
     options?: {
@@ -5,11 +8,15 @@ export const restFetch = async <T, A>(
         params?: Record<string, string>;
         form?: boolean;
         bearerToken?: string;
-        fetchFn?: typeof fetch;
+        method?: "POST" | "GET";
+        global?: {
+            fetch?: typeof fetch;
+        },
+        headers?: Record<string, string>;
     }
 ) => {
 
-    const fetchFn = options?.fetchFn ?? fetch;
+    const fetchFn = options?.global?.fetch ?? fetch;
     const form = options?.form ?? false;
     const bearerHeader = options?.bearerToken
         ? { 'Authorization': `Bearer ${options.bearerToken}` }
@@ -20,17 +27,22 @@ export const restFetch = async <T, A>(
         : '';
 
     const res = await fetchFn(url + query, {
-        method: "POST",
+        method: options?.method ?? "POST",
         headers: {
             "Content-Type": form
                 ? "application/x-www-form-urlencoded"
                 : "application/json",
-            ...bearerHeader
+            ...bearerHeader,
+            ...options?.headers
         },
         body: options?.body ? form
             ? new URLSearchParams(options.body as Record<string, string>)
             : JSON.stringify(options.body) : undefined
     });
+
+    if (PRINT_URL) {
+        console.log('restFetch', url + query);
+    }
 
     if (res.headers.get("content-type")?.includes("application/json")) {
 
