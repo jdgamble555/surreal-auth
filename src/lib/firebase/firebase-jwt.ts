@@ -196,7 +196,9 @@ export async function signJWT(
 
         const key = await importPKCS8(normalizedKey, 'RS256');
 
-        const jwt = await new SignJWT({ scope: SCOPES.join(' ') })
+        console.log('CryptoKey:', key, key.algorithm, key.usages);
+
+        const jwt = new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
             .setIssuer(client_email)
             .setSubject(client_email)
@@ -222,7 +224,6 @@ export async function signJWT(
 
         if (e instanceof Error) {
 
-            console.log('error type');
             return {
                 data: null,
                 error: e
