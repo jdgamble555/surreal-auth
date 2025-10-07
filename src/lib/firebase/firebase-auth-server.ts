@@ -175,7 +175,7 @@ export class FirebaseAuthServer {
         );
 
         if (signInError) {
-            console.error(signInError);
+            console.error(JSON.stringify(signInError));
             return {
                 data: null,
                 error: signInError

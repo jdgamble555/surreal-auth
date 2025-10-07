@@ -169,6 +169,8 @@ export class FirebaseAdminAuth {
         );
 
         if (error) {
+            console.log('createSessionCookie error');
+            console.error(error);
             return {
                 data: null,
                 error

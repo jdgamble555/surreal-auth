@@ -1,11 +1,13 @@
 import {
     decodeProtectedHeader,
     errors,
-    importPKCS8,
     importX509,
-    jwtVerify,
-    SignJWT
+    jwtVerify
 } from "jose";
+
+import { SignJWT } from 'jose/jwt/sign';
+import { importPKCS8 } from 'jose/key/import';
+
 import {
     JWSSignatureVerificationFailed,
     JWTClaimValidationFailed,
@@ -59,7 +61,6 @@ export async function verifySessionJWT(
         const certificate = data[header.kid];
 
         const publicKey = await importX509(certificate, 'RS256');
-
 
         const { payload } = await jwtVerify(sessionCookie, publicKey, {
             issuer: `https://session.firebase.google.com/${projectId}`,
@@ -191,21 +192,25 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(private_key, 'RS256');
+        const normalizedKey = private_key.replace(/\\n/g, '\n');
 
-        const token = await new SignJWT({ scope: SCOPES.join(' ') })
+        const key = await importPKCS8(normalizedKey, 'RS256');
+
+        const jwt = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
             .setIssuer(client_email)
             .setSubject(client_email)
             .setAudience(OAUTH_TOKEN_URL)
             .setIssuedAt()
-            .setExpirationTime('1h')
-            .sign(key);
+            .setExpirationTime('1h');
+
+        const token = await jwt.sign(key);
 
         return {
             data: token,
             error: null
         };
+
     } catch (e: unknown) {
 
         if (e instanceof errors.JOSEError) {
@@ -215,17 +220,28 @@ export async function signJWT(
             };
         }
 
+        if (e instanceof Error) {
+
+            console.log('error type');
+            return {
+                data: null,
+                error: e
+            };
+        }
+
         return {
             data: null,
-            error: e as Error
+            error: {
+                message: e
+            }
         };
     }
 }
 
 const RESERVED_CLAIMS = [
-  'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
-  'exp', 'iat', 'iss', 'jti', 'nbf', 'nonce', 'sub',
-  'firebase', 'user_id'
+    'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
+    'exp', 'iat', 'iss', 'jti', 'nbf', 'nonce', 'sub',
+    'firebase', 'user_id'
 ];
 
 export async function signJWTCustomToken(

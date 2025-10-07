@@ -3,15 +3,18 @@ import {
     PRIVATE_SURREAL_DATABASE,
     PRIVATE_SURREAL_NAMESPACE,
     PRIVATE_SURREAL_PASSWORD,
-    PRIVATE_SURREAL_USER
+    PRIVATE_SURREAL_USERNAME
 } from "$env/static/private";
 
 const url = "https://bright-island-06cre2m569vkb7cmumqlhd5jg0.aws-use1.surreal.cloud";
 
-const user = PRIVATE_SURREAL_USER;
-const pass = PRIVATE_SURREAL_PASSWORD;
 const ns = PRIVATE_SURREAL_NAMESPACE;
 const db = PRIVATE_SURREAL_DATABASE;
+const username = PRIVATE_SURREAL_USERNAME;
+const password = PRIVATE_SURREAL_PASSWORD;
+
+// Base64 encode credentials for Basic Auth
+const credentials = btoa(`${username}:${password}`);
 
 export async function surrealQuery(query: string) {
 
@@ -22,7 +25,7 @@ export async function surrealQuery(query: string) {
         headers: {
             "Content-Type": "text/plain",
             "Accept": "application/json",
-            "Authorization": "Basic " + Buffer.from(`${user}:${pass}`).toString("base64"),
+            "Authorization": "Basic " + credentials,
             "Surreal-NS": ns,
             "Surreal-DB": db
         },
@@ -41,4 +44,5 @@ export async function surrealQuery(query: string) {
         error: null
     };
 }
+
 
