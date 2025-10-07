@@ -190,7 +190,12 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(private_key.replace(/\\n/g, '\n'), 'RS256');
+        const _private_key = private_key.replace(/\\n/g, '\n');
+
+        console.log('First 30 chars:', _private_key.substring(0, 30));
+        console.log('Includes BEGIN:', _private_key.includes('-----BEGIN PRIVATE KEY-----'));
+
+        const key = await importPKCS8(_private_key, 'RS256');
 
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
