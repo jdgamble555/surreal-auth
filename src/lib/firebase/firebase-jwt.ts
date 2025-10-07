@@ -7,6 +7,7 @@ import {
 
 import { SignJWT } from 'jose/jwt/sign';
 import { importPKCS8 } from 'jose/key/import';
+import * as jsrsasign from 'jsrsasign';
 
 import {
     JWSSignatureVerificationFailed,
@@ -194,9 +195,26 @@ export async function signJWT(
 
         const normalizedKey = private_key.replace(/\\n/g, '\n');
 
-        const key = await importPKCS8(normalizedKey, 'RS256');
+        const prvKey = jsrsasign.KEYUTIL.getKey(normalizedKey);
 
-        console.log('CryptoKey:', key, key.algorithm, key.usages);
+        const header = {
+            alg: 'RS256',
+            typ: 'JWT'
+        };
+
+        const payload = {
+            scope: SCOPES.join(' '),
+            iss: client_email,
+            sub: client_email,
+            aud: OAUTH_TOKEN_URL,
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour
+        };
+
+        const token = jsrsasign.KJUR.jws.JWS.sign('RS256', JSON.stringify(header), JSON.stringify(payload), prvKey);
+
+        /*
+        const key = await importPKCS8(normalizedKey, 'RS256');
 
         const jwt = new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
@@ -207,6 +225,7 @@ export async function signJWT(
             .setExpirationTime('1h');
 
         const token = await jwt.sign(key);
+        */
 
         return {
             data: token,
