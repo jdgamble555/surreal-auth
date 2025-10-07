@@ -155,6 +155,7 @@ export class FirebaseAuthServer {
         );
 
         if (exchangeError) {
+            throw exchangeError;
             console.error(JSON.stringify(exchangeError));
             return {
                 error: exchangeError
@@ -176,6 +177,7 @@ export class FirebaseAuthServer {
         );
 
         if (signInError) {
+            throw signInError;
             console.error(JSON.stringify(signInError));
             return {
                 data: null,
