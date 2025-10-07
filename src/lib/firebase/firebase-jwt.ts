@@ -218,6 +218,7 @@ export async function signJWT(
         }
 
         if (e instanceof Error) {
+
             console.log('error type');
             return {
                 data: null,
@@ -225,7 +226,6 @@ export async function signJWT(
             };
         }
 
-        console.log('unknown error type');
         return {
             data: null,
             error: {
