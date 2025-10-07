@@ -190,10 +190,23 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(
-            private_key.replace(/\\n/g, '\n'),
-            'RS256',
-            { extractable: false }
+        const pemKey = private_key.replace(/\\n/g, '\n');
+
+        // Remove PEM headers and decode base64
+        const pemContents = pemKey
+            .replace('-----BEGIN PRIVATE KEY-----', '')
+            .replace('-----END PRIVATE KEY-----', '')
+            .replace(/\s/g, '');
+
+        const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+
+        // Import using Web Crypto API directly
+        const key = await crypto.subtle.importKey(
+            'pkcs8',
+            binaryKey,
+            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+            false,
+            ['sign']
         );
 
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
