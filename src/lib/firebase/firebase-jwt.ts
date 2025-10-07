@@ -1,7 +1,6 @@
 import {
     decodeProtectedHeader,
     errors,
-    importX509,
     jwtVerify
 } from "jose";
 
@@ -18,14 +17,29 @@ import {
 import type { FirebaseIdTokenPayload, ServiceAccount } from "./firebase-types";
 import { getJWKs, getPublicKeys } from "./firebase-auth-endpoints";
 
+
+interface ErrorResponse {
+    code: number;
+    message: string;
+    errors?: {
+        message: string;
+        domain: string;
+        reason: string;
+    }[];
+}
+
+interface JwtResult {
+    data: FirebaseIdTokenPayload | null;
+    error: ErrorResponse | null;
+}
+
 export async function verifySessionJWT(
     sessionCookie: string,
     projectId: string,
-    fetchFn?: typeof globalThis.fetch
-) {
-
+    fetchFn: typeof globalThis.fetch = globalThis.fetch
+): Promise<JwtResult> {
     try {
-
+        // Fetch public keys (same as original)
         const { data, error } = await getPublicKeys(fetchFn);
 
         if (error) {
@@ -46,13 +60,15 @@ export async function verifySessionJWT(
             };
         }
 
-        const header = decodeProtectedHeader(sessionCookie);
+        // Decode JWT header to get kid
+        const parsed = jsrsasign.KJUR.jws.JWS.parse(sessionCookie);
+        const header = parsed.headerObj;
 
         if (!header.kid || !data[header.kid]) {
             return {
                 error: {
                     code: 500,
-                    message: 'No KID found in token',
+                    message: 'No KID found in token or no matching public key',
                     errors: []
                 },
                 data: null
@@ -61,33 +77,79 @@ export async function verifySessionJWT(
 
         const certificate = data[header.kid];
 
-        const publicKey = await importX509(certificate, 'RS256');
+        // Import X.509 certificate as public key
+        const publicKey = jsrsasign.KEYUTIL.getKey(certificate);
 
-        const { payload } = await jwtVerify(sessionCookie, publicKey, {
-            issuer: `https://session.firebase.google.com/${projectId}`,
-            audience: projectId,
-            algorithms: ['RS256']
+        // Verify JWT
+        const isValid = jsrsasign.KJUR.jws.JWS.verify(sessionCookie, publicKey, {
+            alg: ['RS256']
         });
+
+        if (!isValid) {
+            return {
+                error: {
+                    code: 401,
+                    message: 'JWT signature verification failed',
+                    errors: []
+                },
+                data: null
+            };
+        }
+
+        // Validate issuer and audience
+        const payload = parsed.payloadObj;
+        const expectedIssuer = `https://session.firebase.google.com/${projectId}`;
+        const expectedAudience = projectId;
+
+        if (payload.iss !== expectedIssuer) {
+            return {
+                error: {
+                    code: 401,
+                    message: `Invalid issuer: expected ${expectedIssuer}, got ${payload.iss}`,
+                    errors: []
+                },
+                data: null
+            };
+        }
+
+        if (payload.aud !== expectedAudience) {
+            return {
+                error: {
+                    code: 401,
+                    message: `Invalid audience: expected ${expectedAudience}, got ${payload.aud}`,
+                    errors: []
+                },
+                data: null
+            };
+        }
+
+        // Validate expiration
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+            return {
+                error: {
+                    code: 401,
+                    message: 'JWT has expired',
+                    errors: []
+                },
+                data: null
+            };
+        }
 
         return {
             error: null,
             data: payload as FirebaseIdTokenPayload
         };
-
     } catch (err: unknown) {
-
-        if (err instanceof JWTExpired ||
-            err instanceof JWTInvalid ||
-            err instanceof JWTClaimValidationFailed ||
-            err instanceof JWSSignatureVerificationFailed) {
-            return {
-                error: err,
-                data: null
-            };
-        }
-
-        // Should never happen
-        throw err;
+        // Handle generic errors
+        return {
+            error: {
+                code: 500,
+                message: err instanceof Error ? err.message : 'Unknown error during JWT verification',
+                errors: []
+            },
+            data: null
+        };
     }
 }
 
