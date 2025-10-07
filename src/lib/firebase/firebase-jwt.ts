@@ -192,6 +192,9 @@ export async function signJWT(
 
         const key = await importPKCS8(private_key, 'RS256');
 
+        console.log('has subtle?', !!globalThis.crypto?.subtle);
+        console.log('key is CryptoKey?', typeof CryptoKey !== 'undefined' && key instanceof CryptoKey);
+
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
             .setIssuer(client_email)
@@ -222,9 +225,9 @@ export async function signJWT(
 }
 
 const RESERVED_CLAIMS = [
-  'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
-  'exp', 'iat', 'iss', 'jti', 'nbf', 'nonce', 'sub',
-  'firebase', 'user_id'
+    'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
+    'exp', 'iat', 'iss', 'jti', 'nbf', 'nonce', 'sub',
+    'firebase', 'user_id'
 ];
 
 export async function signJWTCustomToken(
