@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ url, locals: { authServer } }) => {
     );
 
     if (loginError) {
-        error(400, loginError.message);
+        error(400, JSON.stringify(loginError.message));
     }
 
     redirect(302, next);
