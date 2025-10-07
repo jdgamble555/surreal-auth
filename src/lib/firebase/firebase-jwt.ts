@@ -211,12 +211,14 @@ export async function signJWT(
     } catch (e: unknown) {
 
         if (e instanceof errors.JOSEError) {
-            console.error('JOSEError:', e);
             return {
                 data: null,
                 error: e
             };
         }
+
+        console.log('test');
+        console.error(e);
 
         return {
             data: null,
