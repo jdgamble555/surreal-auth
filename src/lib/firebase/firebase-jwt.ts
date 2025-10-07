@@ -1,11 +1,13 @@
 import {
     decodeProtectedHeader,
     errors,
-    importPKCS8,
     importX509,
-    jwtVerify,
-    SignJWT
+    jwtVerify
 } from "jose";
+
+import { SignJWT } from 'jose/jwt/sign';
+import { importPKCS8 } from 'jose/key/import';
+
 import {
     JWSSignatureVerificationFailed,
     JWTClaimValidationFailed,
