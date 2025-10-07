@@ -205,7 +205,7 @@ export class FirebaseAdminAuth {
             };
         }
 
-        const { data: user, error: userError } = await this.getUser(data.sub);
+        const { data: user, error: userError } = await this.getUser(data!.sub);
 
         if (userError) {
             return {

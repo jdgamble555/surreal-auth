@@ -3,10 +3,11 @@ import {
     PRIVATE_SURREAL_DATABASE,
     PRIVATE_SURREAL_NAMESPACE,
     PRIVATE_SURREAL_PASSWORD,
+    PRIVATE_SURREAL_URL,
     PRIVATE_SURREAL_USERNAME
 } from "$env/static/private";
 
-const url = "https://bright-island-06cre2m569vkb7cmumqlhd5jg0.aws-use1.surreal.cloud";
+const url = PRIVATE_SURREAL_URL;
 
 const ns = PRIVATE_SURREAL_NAMESPACE;
 const db = PRIVATE_SURREAL_DATABASE;
