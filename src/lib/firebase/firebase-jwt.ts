@@ -192,16 +192,19 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(private_key.replace(/\\n/g, '\n'), 'RS256');
+        const normalizedKey = private_key.replace(/\\n/g, '\n');
 
-        const token = await new SignJWT({ scope: SCOPES.join(' ') })
+        const key = await importPKCS8(normalizedKey, 'RS256');
+
+        const jwt = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
             .setIssuer(client_email)
             .setSubject(client_email)
             .setAudience(OAUTH_TOKEN_URL)
             .setIssuedAt()
-            .setExpirationTime('1h')
-            .sign(key);
+            .setExpirationTime('1h');
+
+        const token = await jwt.sign(key);
 
         return {
             data: token,
