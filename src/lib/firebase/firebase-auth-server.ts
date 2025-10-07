@@ -155,6 +155,7 @@ export class FirebaseAuthServer {
         );
 
         if (exchangeError) {
+            console.error(exchangeError);
             return {
                 error: exchangeError
             };
