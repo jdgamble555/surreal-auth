@@ -178,7 +178,6 @@ export class FirebaseAuthServer {
         );
 
         if (signInError) {
-            error(400, signInError);
             console.error(JSON.stringify(signInError));
             return {
                 data: null,
@@ -192,6 +191,8 @@ export class FirebaseAuthServer {
                 error: null
             };
         }
+
+        console.log('after signin and before session');
 
         const {
             data: sessionCookie,
@@ -212,6 +213,8 @@ export class FirebaseAuthServer {
                 error: new Error('No session cookie returned')
             };
         }
+
+        console.log('before save session');
 
         this.saveSession(
             this.sessionName,
