@@ -217,12 +217,18 @@ export async function signJWT(
             };
         }
 
-        console.log('test');
-        console.error(e);
+        if (e instanceof Error) {
+            return {
+                data: null,
+                error: e
+            };
+        }
 
         return {
             data: null,
-            error: e as Error
+            error: {
+                message: e
+            }
         };
     }
 }
