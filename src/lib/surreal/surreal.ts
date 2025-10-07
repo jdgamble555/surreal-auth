@@ -6,7 +6,7 @@ import {
     PRIVATE_SURREAL_USER
 } from "$env/static/private";
 
-const url = "https://bright-island-06cre2m569vkb7cmumqlhd5jg0.aws-use1.surreal.cloud/sql";
+const url = "https://bright-island-06cre2m569vkb7cmumqlhd5jg0.aws-use1.surreal.cloud";
 
 const user = PRIVATE_SURREAL_USER;
 const pass = PRIVATE_SURREAL_PASSWORD;
@@ -30,9 +30,15 @@ export async function surrealQuery(query: string) {
     });
 
     if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${await res.text()}`);
+        return {
+            data: null,
+            error: `Error ${res.status}: ${await res.text()}`
+        };
     }
 
-    return res.json();
+    return {
+        data: await res.json(),
+        error: null
+    };
 }
 
