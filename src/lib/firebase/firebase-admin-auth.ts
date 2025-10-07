@@ -143,6 +143,8 @@ export class FirebaseAdminAuth {
         } = await getToken(this.serviceAccountKey, this.fetch);
 
         if (getTokenError) {
+            console.log('getTokenError');
+            console.error(getTokenError);
             return {
                 data: null,
                 error: getTokenError
@@ -169,6 +171,8 @@ export class FirebaseAdminAuth {
         );
 
         if (error) {
+            console.log('createSessionCookie error');
+            console.error(error);
             return {
                 data: null,
                 error

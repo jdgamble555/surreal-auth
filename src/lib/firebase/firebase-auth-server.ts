@@ -1,4 +1,3 @@
-import { error } from "@sveltejs/kit";
 import type { CookieOptions, GetSession, SetSession } from "./cookie-types";
 import { FirebaseAdminAuth } from "./firebase-admin-auth";
 import { FirebaseAuth } from "./firebase-auth";
@@ -190,8 +189,6 @@ export class FirebaseAuthServer {
             };
         }
 
-        console.log('after signin and before session');
-
         const {
             data: sessionCookie,
             error: sessionError
@@ -201,7 +198,6 @@ export class FirebaseAuthServer {
         );
 
         if (sessionError) {
-            console.error(JSON.stringify(sessionError));
             return {
                 error: sessionError
             };
@@ -212,8 +208,6 @@ export class FirebaseAuthServer {
                 error: new Error('No session cookie returned')
             };
         }
-
-        console.log('before save session');
 
         this.saveSession(
             this.sessionName,
