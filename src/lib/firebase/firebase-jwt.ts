@@ -2,6 +2,7 @@ import {
     decodeProtectedHeader,
     errors,
     importPKCS8,
+    importSPKI,
     importX509,
     jwtVerify,
     SignJWT
@@ -190,7 +191,7 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(private_key, 'RS256');
+        const key = await importSPKI(private_key, 'RS256');
 
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
