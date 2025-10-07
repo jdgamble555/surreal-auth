@@ -39,3 +39,4 @@ export async function surrealQuery(query: string) {
     return res.json();
 }
 
+
