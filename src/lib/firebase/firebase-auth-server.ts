@@ -144,7 +144,6 @@ export class FirebaseAuthServer {
     ) {
         const { client_id, client_secret } = this.providers.google;
 
-        console.log('before exchangeCodeForGoogleIdToken');
         const {
             data: exchangeData,
             error: exchangeError
@@ -156,12 +155,7 @@ export class FirebaseAuthServer {
             this.fetch
         );
 
-        console.log('after exchangeCodeForGoogleIdToken');
-
         if (exchangeError) {
-            console.log(exchangeError.code);
-            console.log(exchangeError.message);
-            console.error(JSON.stringify(exchangeError));
             return {
                 error: exchangeError
             };
@@ -172,6 +166,8 @@ export class FirebaseAuthServer {
                 error: new Error('No exchange data!')
             };
         }
+
+        console.log('after exchange and before signin');
 
         const {
             data: signInData,
