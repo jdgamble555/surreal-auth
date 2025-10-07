@@ -188,12 +188,9 @@ export async function signJWT(
         "https://www.googleapis.com/auth/devstorage.read_write"
     ] as const;
 
-    // Normalize JSON-escaped newlines:
-    const pem = private_key.replace(/\\n/g, "\n");
-
     try {
 
-        const key = await importPKCS8(pem, 'RS256');
+        const key = await importPKCS8(private_key, 'RS256');
 
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
@@ -225,9 +222,9 @@ export async function signJWT(
 }
 
 const RESERVED_CLAIMS = [
-    'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
-    'exp', 'iat', 'iss', 'jti', 'nbf', 'nonce', 'sub',
-    'firebase', 'user_id'
+  'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
+  'exp', 'iat', 'iss', 'jti', 'nbf', 'nonce', 'sub',
+  'firebase', 'user_id'
 ];
 
 export async function signJWTCustomToken(
