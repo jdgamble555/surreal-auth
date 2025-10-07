@@ -1,3 +1,4 @@
+import { error } from "@sveltejs/kit";
 import type { CookieOptions, GetSession, SetSession } from "./cookie-types";
 import { FirebaseAdminAuth } from "./firebase-admin-auth";
 import { FirebaseAuth } from "./firebase-auth";
@@ -155,7 +156,7 @@ export class FirebaseAuthServer {
         );
 
         if (exchangeError) {
-            throw exchangeError;
+            error(400, exchangeError);
             console.error(JSON.stringify(exchangeError));
             return {
                 error: exchangeError
@@ -177,7 +178,7 @@ export class FirebaseAuthServer {
         );
 
         if (signInError) {
-            throw signInError;
+            error(400, signInError);
             console.error(JSON.stringify(signInError));
             return {
                 data: null,
