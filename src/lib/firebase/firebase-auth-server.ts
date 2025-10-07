@@ -167,8 +167,6 @@ export class FirebaseAuthServer {
             };
         }
 
-        console.log('after exchange and before signin');
-
         const {
             data: signInData,
             error: signInError
@@ -203,6 +201,7 @@ export class FirebaseAuthServer {
         );
 
         if (sessionError) {
+            console.error(JSON.stringify(sessionError));
             return {
                 error: sessionError
             };
