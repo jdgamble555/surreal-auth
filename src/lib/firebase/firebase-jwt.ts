@@ -1,7 +1,6 @@
 import {
     decodeProtectedHeader,
     errors,
-    importPKCS8,
     importX509,
     jwtVerify,
     SignJWT
@@ -173,6 +172,28 @@ export async function verifyJWT(
     }
 }
 
+const toPkcs8Der = (pem: string): ArrayBuffer => {
+    const fixed = pem.replace(/\\n/g, '\n').trim();
+    if (/BEGIN RSA PRIVATE KEY/.test(fixed)) {
+        throw new Error("Edge/WebCrypto needs PKCS#8 ('BEGIN PRIVATE KEY'), not PKCS#1.");
+    }
+    const b64 = fixed.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+};
+
+async function importEdgeKey(pem: string): Promise<CryptoKey> {
+    return crypto.subtle.importKey(
+        'pkcs8',
+        toPkcs8Der(pem),
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+}
+
 
 export async function signJWT(
     serviceAccount: ServiceAccount
@@ -190,10 +211,7 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(private_key, 'RS256');
-
-        console.log('has subtle?', !!globalThis.crypto?.subtle);
-        console.log('key is CryptoKey?', typeof CryptoKey !== 'undefined' && key instanceof CryptoKey);
+        const key = await importEdgeKey(private_key);
 
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
