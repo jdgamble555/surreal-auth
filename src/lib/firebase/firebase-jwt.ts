@@ -14,6 +14,7 @@ import {
 } from "jose/errors";
 import type { FirebaseIdTokenPayload, ServiceAccount } from "./firebase-types";
 import { getJWKs, getPublicKeys } from "./firebase-auth-endpoints";
+import { createPrivateKey } from "crypto";
 
 export async function verifySessionJWT(
     sessionCookie: string,
@@ -193,7 +194,7 @@ export async function signJWT(
 
     try {
 
-        const key = await importPKCS8(pem, 'RS256');
+        const key = createPrivateKey({ key: pem, format: 'pem' });
 
         const token = await new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
