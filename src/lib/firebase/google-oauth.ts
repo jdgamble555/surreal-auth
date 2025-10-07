@@ -68,6 +68,7 @@ export async function getToken(
         const { data: jwtData, error: jwtError } = await signJWT(serviceAccount);
 
         if (jwtError) {
+            console.error(jwtError);
             return {
                 data: null,
                 error: jwtError

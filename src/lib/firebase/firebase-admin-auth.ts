@@ -143,8 +143,6 @@ export class FirebaseAdminAuth {
         } = await getToken(this.serviceAccountKey, this.fetch);
 
         if (getTokenError) {
-            console.log('getTokenError');
-            console.error(getTokenError);
             return {
                 data: null,
                 error: getTokenError
