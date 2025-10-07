@@ -156,7 +156,8 @@ export class FirebaseAuthServer {
         );
 
         if (exchangeError) {
-            error(400, exchangeError);
+            console.log(exchangeError.code);
+            console.log(exchangeError.message);
             console.error(JSON.stringify(exchangeError));
             return {
                 error: exchangeError
