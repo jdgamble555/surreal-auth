@@ -8,7 +8,6 @@ import {
 } from "$env/static/private";
 
 const url = PRIVATE_SURREAL_URL;
-
 const ns = PRIVATE_SURREAL_NAMESPACE;
 const db = PRIVATE_SURREAL_DATABASE;
 const username = PRIVATE_SURREAL_USERNAME;
