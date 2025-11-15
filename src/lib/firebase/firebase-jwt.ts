@@ -1,12 +1,12 @@
 import {
     decodeProtectedHeader,
     errors,
-    jwtVerify
+    jwtVerify,
+    importX509
 } from "jose";
 
 import { SignJWT } from 'jose/jwt/sign';
 import { importPKCS8 } from 'jose/key/import';
-import * as jsrsasign from 'jsrsasign';
 
 import {
     JWSSignatureVerificationFailed,
@@ -32,6 +32,9 @@ interface JwtResult {
     data: FirebaseIdTokenPayload | null;
     error: ErrorResponse | null;
 }
+
+// import { JwtResult, FirebaseIdTokenPayload } from './your-types';
+// import { getPublicKeys } from './getPublicKeys';
 
 export async function verifySessionJWT(
     sessionCookie: string,
@@ -61,10 +64,9 @@ export async function verifySessionJWT(
         }
 
         // Decode JWT header to get kid
-        const parsed = jsrsasign.KJUR.jws.JWS.parse(sessionCookie);
-        const header = parsed.headerObj;
+        const header = decodeProtectedHeader(sessionCookie);
 
-        if (!header.kid || !data[header.kid]) {
+        if (!header.kid || typeof header.kid !== 'string' || !data[header.kid]) {
             return {
                 error: {
                     code: 500,
@@ -78,70 +80,60 @@ export async function verifySessionJWT(
         const certificate = data[header.kid];
 
         // Import X.509 certificate as public key
-        const publicKey = jsrsasign.KEYUTIL.getKey(certificate);
+        const publicKey = await importX509(certificate, 'RS256');
 
-        // Verify JWT
-        const isValid = jsrsasign.KJUR.jws.JWS.verify(sessionCookie, publicKey, {
-            alg: ['RS256']
-        });
-
-        if (!isValid) {
-            return {
-                error: {
-                    code: 401,
-                    message: 'JWT signature verification failed',
-                    errors: []
-                },
-                data: null
-            };
-        }
-
-        // Validate issuer and audience
-        const payload = parsed.payloadObj;
         const expectedIssuer = `https://session.firebase.google.com/${projectId}`;
         const expectedAudience = projectId;
 
-        if (payload.iss !== expectedIssuer) {
-            return {
-                error: {
-                    code: 401,
-                    message: `Invalid issuer: expected ${expectedIssuer}, got ${payload.iss}`,
-                    errors: []
-                },
-                data: null
-            };
-        }
-
-        if (payload.aud !== expectedAudience) {
-            return {
-                error: {
-                    code: 401,
-                    message: `Invalid audience: expected ${expectedAudience}, got ${payload.aud}`,
-                    errors: []
-                },
-                data: null
-            };
-        }
-
-        // Validate expiration
-        const now = Math.floor(Date.now() / 1000);
-        if (payload.exp && payload.exp < now) {
-            return {
-                error: {
-                    code: 401,
-                    message: 'JWT has expired',
-                    errors: []
-                },
-                data: null
-            };
-        }
+        // Verify JWT (signature + iss/aud + exp/nbf)
+        const { payload } = await jwtVerify(sessionCookie, publicKey, {
+            issuer: expectedIssuer,
+            audience: expectedAudience,
+            algorithms: ['RS256']
+        });
 
         return {
             error: null,
             data: payload as FirebaseIdTokenPayload
         };
     } catch (err: unknown) {
-        // Handle generic errors
+        // Map jose errors to your error shape
+        if (err instanceof Error) {
+            if (err.name === 'JWTExpired') {
+                return {
+                    error: {
+                        code: 401,
+                        message: 'JWT has expired',
+                        errors: []
+                    },
+                    data: null
+                };
+            }
+
+            if (err.name === 'JWTClaimValidationFailed') {
+                return {
+                    error: {
+                        code: 401,
+                        message: `JWT claim validation failed: ${err.message}`,
+                        errors: []
+                    },
+                    data: null
+                };
+            }
+
+            if (err.name === 'JWSVerificationFailed' || err.name === 'JWSSignatureVerificationFailed') {
+                return {
+                    error: {
+                        code: 401,
+                        message: 'JWT signature verification failed',
+                        errors: []
+                    },
+                    data: null
+                };
+            }
+        }
+
+        // Fallback generic error
         return {
             error: {
                 code: 500,
@@ -242,42 +234,24 @@ export async function verifyJWT(
 export async function signJWT(
     serviceAccount: ServiceAccount
 ) {
-
     const { private_key, client_email } = serviceAccount;
 
-    const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+    const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
     const SCOPES = [
-        "https://www.googleapis.com/auth/datastore",
-        "https://www.googleapis.com/auth/identitytoolkit",
-        "https://www.googleapis.com/auth/devstorage.read_write"
+        'https://www.googleapis.com/auth/datastore',
+        'https://www.googleapis.com/auth/identitytoolkit',
+        'https://www.googleapis.com/auth/devstorage.read_write'
     ] as const;
 
     try {
-
+        // Firebase puts "\n" in JSON, normalize to real newlines for PEM
         const normalizedKey = private_key.replace(/\\n/g, '\n');
 
-        const prvKey = jsrsasign.KEYUTIL.getKey(normalizedKey);
-
-        const header = {
-            alg: 'RS256',
-            typ: 'JWT'
-        };
-
-        const payload = {
-            scope: SCOPES.join(' '),
-            iss: client_email,
-            sub: client_email,
-            aud: OAUTH_TOKEN_URL,
-            iat: Math.floor(Date.now() / 1000),
-            exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour
-        };
-
-        const token = jsrsasign.KJUR.jws.JWS.sign('RS256', JSON.stringify(header), JSON.stringify(payload), prvKey);
-
-        /*
+        // Import PKCS#8 private key for RS256
         const key = await importPKCS8(normalizedKey, 'RS256');
 
+        // Build JWT with jose
         const jwt = new SignJWT({ scope: SCOPES.join(' ') })
             .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
             .setIssuer(client_email)
@@ -287,7 +261,6 @@ export async function signJWT(
             .setExpirationTime('1h');
 
         const token = await jwt.sign(key);
-        */
 
         return {
             data: token,
@@ -295,7 +268,6 @@ export async function signJWT(
         };
 
     } catch (e: unknown) {
-
         if (e instanceof errors.JOSEError) {
             return {
                 data: null,
@@ -304,7 +276,6 @@ export async function signJWT(
         }
 
         if (e instanceof Error) {
-
             return {
                 data: null,
                 error: e
@@ -319,6 +290,7 @@ export async function signJWT(
         };
     }
 }
+
 
 const RESERVED_CLAIMS = [
     'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',

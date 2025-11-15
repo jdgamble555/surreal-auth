@@ -16,20 +16,25 @@ const password = PRIVATE_SURREAL_PASSWORD;
 // Base64 encode credentials for Basic Auth
 const credentials = btoa(`${username}:${password}`);
 
-export async function surrealQuery(query: string) {
-
+export async function surrealQuery(
+    query: string,
+    vars?: Record<string, unknown> // optional variables
+) {
     const { fetch } = getRequestEvent();
 
     const res = await fetch(url, {
         method: "POST",
         headers: {
-            "Content-Type": "text/plain",
+            "Content-Type": "application/json",
             "Accept": "application/json",
             "Authorization": "Basic " + credentials,
             "Surreal-NS": ns,
             "Surreal-DB": db
         },
-        body: query
+        body: JSON.stringify({
+            query,
+            vars
+        })
     });
 
     if (!res.ok) {
