@@ -2,20 +2,28 @@ import {
     decodeProtectedHeader,
     errors,
     jwtVerify,
-    importX509
+    importPKCS8,
+    SignJWT,
+    importX509,
+    importSPKI,
+    type JWTPayload
 } from "jose";
-
-import { SignJWT } from 'jose/jwt/sign';
-import { importPKCS8 } from 'jose/key/import';
-
 import {
+    JOSEError,
+    JWSInvalid,
     JWSSignatureVerificationFailed,
     JWTClaimValidationFailed,
     JWTExpired,
     JWTInvalid
 } from "jose/errors";
-import type { FirebaseIdTokenPayload, ServiceAccount } from "./firebase-types";
-import { getJWKs, getPublicKeys } from "./firebase-auth-endpoints";
+import type {
+    FirebaseIdTokenPayload,
+    ServiceAccount
+} from "./firebase-types";
+import {
+    getJWKs,
+    getPublicKeys
+} from "./firebase-auth-endpoints";
 
 
 interface ErrorResponse {
@@ -33,8 +41,46 @@ interface JwtResult {
     error: ErrorResponse | null;
 }
 
-// import { JwtResult, FirebaseIdTokenPayload } from './your-types';
-// import { getPublicKeys } from './getPublicKeys';
+const ALGORITHM_RS256 = 'RS256' as const;
+
+const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+const SCOPES = [
+    'https://www.googleapis.com/auth/datastore',
+    'https://www.googleapis.com/auth/identitytoolkit',
+    'https://www.googleapis.com/auth/devstorage.read_write'
+] as const;
+
+const keyMap = new Map<string, unknown>();
+
+async function importPublicCryptoKey(publicKey: string) {
+    if (publicKey.startsWith('-----BEGIN CERTIFICATE-----')) {
+        return importX509(publicKey, ALGORITHM_RS256);
+    }
+
+    return importSPKI(publicKey, ALGORITHM_RS256);
+}
+
+async function getPublicCryptoKey(publicKey: string) {
+    const cachedKey = keyMap.get(publicKey);
+
+    if (cachedKey) {
+        return cachedKey;
+    }
+
+    const key = await importPublicCryptoKey(publicKey);
+    keyMap.set(publicKey, key);
+    return key;
+}
+
+type SignJwtResult =
+    | { data: string; error: null }
+    | {
+        data: null;
+        error: JOSEError | Error | { message: string };
+    };
+
+
 
 export async function verifySessionJWT(
     sessionCookie: string,
@@ -42,8 +88,7 @@ export async function verifySessionJWT(
     fetchFn: typeof globalThis.fetch = globalThis.fetch
 ): Promise<JwtResult> {
     try {
-        // Fetch public keys (same as original)
-        const { data, error } = await getPublicKeys(fetchFn);
+        const { data: keyData, error } = await getPublicKeys(fetchFn);
 
         if (error) {
             return {
@@ -52,7 +97,7 @@ export async function verifySessionJWT(
             };
         }
 
-        if (!data) {
+        if (!keyData) {
             return {
                 data: null,
                 error: {
@@ -63,10 +108,10 @@ export async function verifySessionJWT(
             };
         }
 
-        // Decode JWT header to get kid
+        // Decode header to get kid
         const header = decodeProtectedHeader(sessionCookie);
 
-        if (!header.kid || typeof header.kid !== 'string' || !data[header.kid]) {
+        if (!header.kid || typeof header.kid !== 'string' || !keyData[header.kid]) {
             return {
                 error: {
                     code: 500,
@@ -77,19 +122,17 @@ export async function verifySessionJWT(
             };
         }
 
-        const certificate = data[header.kid];
-
-        // Import X.509 certificate as public key
-        const publicKey = await importX509(certificate, 'RS256');
-
+        const publicKeyString = keyData[header.kid];
         const expectedIssuer = `https://session.firebase.google.com/${projectId}`;
         const expectedAudience = projectId;
 
-        // Verify JWT (signature + iss/aud + exp/nbf)
+        // Non-emulator: verify with jose
+        const publicKey = await getPublicCryptoKey(publicKeyString);
+
         const { payload } = await jwtVerify(sessionCookie, publicKey, {
             issuer: expectedIssuer,
             audience: expectedAudience,
-            algorithms: ['RS256']
+            algorithms: [ALGORITHM_RS256]
         });
 
         return {
@@ -97,53 +140,60 @@ export async function verifySessionJWT(
             data: payload as FirebaseIdTokenPayload
         };
     } catch (err: unknown) {
-        // Map jose errors to your error shape
-        if (err instanceof Error) {
-            if (err.name === 'JWTExpired') {
-                return {
-                    error: {
-                        code: 401,
-                        message: 'JWT has expired',
-                        errors: []
-                    },
-                    data: null
-                };
-            }
-
-            if (err.name === 'JWTClaimValidationFailed') {
-                return {
-                    error: {
-                        code: 401,
-                        message: `JWT claim validation failed: ${err.message}`,
-                        errors: []
-                    },
-                    data: null
-                };
-            }
-
-            if (err.name === 'JWSVerificationFailed' || err.name === 'JWSSignatureVerificationFailed') {
-                return {
-                    error: {
-                        code: 401,
-                        message: 'JWT signature verification failed',
-                        errors: []
-                    },
-                    data: null
-                };
-            }
+        if (err instanceof JWTExpired) {
+            return {
+                error: {
+                    code: 401,
+                    message: 'JWT has expired',
+                    errors: []
+                },
+                data: null
+            };
         }
 
-        // Fallback generic error
+        if (err instanceof JWTClaimValidationFailed) {
+            return {
+                error: {
+                    code: 401,
+                    message: `JWT claim validation failed: ${err.message}`,
+                    errors: []
+                },
+                data: null
+            };
+        }
+
+        if (
+            err instanceof JWSInvalid ||
+            err instanceof JWSSignatureVerificationFailed
+        ) {
+            return {
+                error: {
+                    code: 401,
+                    message: 'JWT signature verification failed',
+                    errors: [{
+                        message: err.message,
+                        domain: 'jwt',
+                        reason: 'signature_verification_failed'
+                    }]
+                },
+                data: null
+            };
+        }
+
         return {
             error: {
                 code: 500,
-                message: err instanceof Error ? err.message : 'Unknown error during JWT verification',
+                message:
+                    err instanceof Error
+                        ? err.message
+                        : 'Unknown error during JWT verification',
                 errors: []
             },
             data: null
         };
     }
 }
+
 
 
 export async function verifyJWT(
@@ -231,66 +281,58 @@ export async function verifyJWT(
 }
 
 
-export async function signJWT(
-    serviceAccount: ServiceAccount
-) {
+export async function signJWT(serviceAccount: ServiceAccount): Promise<SignJwtResult> {
     const { private_key, client_email } = serviceAccount;
 
-    const OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-
-    const SCOPES = [
-        'https://www.googleapis.com/auth/datastore',
-        'https://www.googleapis.com/auth/identitytoolkit',
-        'https://www.googleapis.com/auth/devstorage.read_write'
-    ] as const;
-
     try {
-        // Firebase puts "\n" in JSON, normalize to real newlines for PEM
+        // Normalize Firebase JSON private key
         const normalizedKey = private_key.replace(/\\n/g, '\n');
 
-        // Import PKCS#8 private key for RS256
-        const key = await importPKCS8(normalizedKey, 'RS256');
+        let key;
 
-        // Build JWT with jose
-        const jwt = new SignJWT({ scope: SCOPES.join(' ') })
-            .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
-            .setIssuer(client_email)
-            .setSubject(client_email)
-            .setAudience(OAUTH_TOKEN_URL)
-            .setIssuedAt()
-            .setExpirationTime('1h');
+        try {
+            // NOTE: we don't type this as KeyLike, just let jose's type defs handle it
+            key = await importPKCS8(normalizedKey, ALGORITHM_RS256);
+        } catch (e) {
+            throw new Error(
+                `Invalid serviceAccount.private_key format. Make sure it is a valid PKCS#8 PEM string. - ${e}`
+            );
+        }
 
-        const token = await jwt.sign(key);
+        const now = Math.floor(Date.now() / 1000);
+
+        const payload: JWTPayload = {
+            scope: SCOPES.join(' '),
+            iss: client_email,
+            sub: client_email,
+            aud: OAUTH_TOKEN_URL,
+            iat: now,
+            exp: now + 3600 // 1 hour
+        };
+
+        const token = await new SignJWT(payload)
+            .setProtectedHeader({ alg: ALGORITHM_RS256, typ: 'JWT' })
+            .sign(key);
 
         return {
             data: token,
             error: null
         };
-
     } catch (e: unknown) {
-        if (e instanceof errors.JOSEError) {
-            return {
-                data: null,
-                error: e
-            };
+        if (e instanceof JOSEError) {
+            return { data: null, error: e };
         }
 
         if (e instanceof Error) {
-            return {
-                data: null,
-                error: e
-            };
+            return { data: null, error: e };
         }
 
         return {
             data: null,
-            error: {
-                message: e
-            }
+            error: { message: String(e) }
         };
     }
 }
-
 
 const RESERVED_CLAIMS = [
     'acr', 'amr', 'at_hash', 'aud', 'auth_time', 'azp', 'cnf', 'c_hash',
